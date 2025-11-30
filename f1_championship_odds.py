@@ -181,7 +181,11 @@ class F1ChampionshipPredictor:
 
             for result in results:
                 driver_number = result.get('driver_number')
-                points = result.get('points', 0)
+                points = result.get('points')
+
+                # Handle None points explicitly
+                if points is None:
+                    points = 0
 
                 if driver_number is not None:
                     # Get driver name
