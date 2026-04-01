@@ -20,7 +20,7 @@ class F1ChampionshipPredictor:
     """Predicts F1 championship win probabilities using Monte Carlo simulation."""
 
     BASE_URL = "https://api.openf1.org/v1"
-    CURRENT_YEAR = 2025
+    CURRENT_YEAR = 2026
 
     # Points system for GPs
     POINTS_MAP = {
@@ -132,13 +132,23 @@ class F1ChampionshipPredictor:
     def get_race_sessions(self):
         """Get all race sessions (excluding practice, qualifying, and sprints)."""
         sessions = self.fetch_sessions()
-        
+
         # Filter for Race sessions but exclude Sprint races
         race_sessions = [s for s in sessions
                         if s['session_type'] == 'Race'
                         and s.get('session_name', '').lower() != 'sprint']
-        
+
         return sorted(race_sessions, key=lambda x: x['date_start'])
+
+    def get_sprint_sessions(self):
+        """Get all sprint race sessions."""
+        sessions = self.fetch_sessions()
+
+        sprint_sessions = [s for s in sessions
+                          if s['session_type'] == 'Race'
+                          and s.get('session_name', '').lower() == 'sprint']
+
+        return sorted(sprint_sessions, key=lambda x: x['date_start'])
 
     def calculate_current_standings(self, race_sessions):
         """Calculate current championship standings from completed races and sprints."""
@@ -451,7 +461,17 @@ class F1ChampionshipPredictor:
             remaining_races = total_races - completed_races
 
         # Handle remaining sprints
-        remaining_sprints = self.override_remaining_sprints or 0
+        if self.override_remaining_sprints is not None:
+            remaining_sprints = self.override_remaining_sprints
+        else:
+            sprint_sessions = self.get_sprint_sessions()
+            total_sprints = len(sprint_sessions)
+            completed_sprints = sum(
+                1 for s in sprint_sessions
+                if datetime.fromisoformat(s['date_start'].replace('Z', '+00:00'))
+                <= datetime.now(datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).tzinfo)
+            )
+            remaining_sprints = total_sprints - completed_sprints
 
         print(f"\nSeason Progress: {completed_races}/{total_races} GP races completed")
         print(f"Remaining GP races: {remaining_races}")
@@ -557,8 +577,8 @@ def main():
     parser.add_argument(
         '--year',
         type=int,
-        default=2025,
-        help='F1 season year (default: 2025)'
+        default=2026,
+        help='F1 season year (default: 2026)'
     )
     parser.add_argument(
         '--simulations',
